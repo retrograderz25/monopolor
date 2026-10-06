@@ -8,35 +8,28 @@ app.disable('x-powered-by');
 app.use(express.json());
 
 const port = Number(process.env.PORT || 3001);
-const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-const allowedOrigins = frontendUrl
-    .split(',')
-    .map((origin) => origin.trim())
-    .filter(Boolean);
 
-function corsOrigin(origin, callback) {
-    // Non-browser requests and local health checks may not send Origin.
-    if (!origin) return callback(null, true);
-
-    if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
-        return callback(null, true);
-    }
-
-    return callback(new Error(`CORS blocked origin: ${origin}`));
-}
+const rawFrontendUrl = String(process.env.FRONTEND_URL || '').trim();
+const allowedOrigins = rawFrontendUrl
+    ? rawFrontendUrl.split(',').map((origin) => origin.trim()).filter(Boolean)
+    : ['*'];
 
 const corsOptions = {
-    origin: corsOrigin,
+    origin: allowedOrigins,
     methods: ['GET', 'POST'],
 };
 
-app.use(cors(corsOptions));
-
 const server = http.createServer(app);
+
+// Socket.IO uses its own Engine.IO handshake. Keep the configuration simple
+// and let Socket.IO use its default polling -> WebSocket upgrade flow.
 const io = new Server(server, {
     cors: corsOptions,
-    transports: ['websocket', 'polling'],
+    pingInterval: 25000,
+    pingTimeout: 20000,
 });
+
+app.use(cors(corsOptions));
 
 app.get('/', (_req, res) => {
     res.json({
@@ -53,6 +46,18 @@ app.get('/health', (_req, res) => {
         rooms: Object.keys(gameRooms).length,
     });
 });
+
+
+io.engine.on('connection_error', (err) => {
+    console.error('Socket.IO connection_error', {
+        code: err.code,
+        message: err.message,
+        url: err.req?.url,
+        origin: err.req?.headers?.origin,
+        transport: err.req?.headers?.['sec-websocket-protocol'] || err.req?.headers?.upgrade,
+    });
+});
+
 
 // ------------------------------------------------------------
 // BOARD

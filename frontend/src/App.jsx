@@ -2,9 +2,18 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { io } from 'socket.io-client';
 import './App.css';
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
+const SOCKET_URL = (
+  import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001'
+).trim();
+
 const socket = io(SOCKET_URL, {
-  transports: ['websocket', 'polling'],
+  // Keep Socket.IO's default polling -> WebSocket upgrade path.
+  // This is more resilient behind proxies/load balancers such as Render.
+  reconnection: true,
+  reconnectionAttempts: Infinity,
+  reconnectionDelay: 1000,
+  reconnectionDelayMax: 5000,
+  timeout: 10000,
 });
 
 const DICE_FACES = ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
