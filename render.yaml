@@ -1,0 +1,37 @@
+services:
+  # ------------------------------------------------------------
+  # Socket.IO / Express backend
+  # ------------------------------------------------------------
+  - type: web
+    name: monopoly-server
+    runtime: node
+    plan: free
+    region: singapore
+    rootDir: backend
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: FRONTEND_URL
+        sync: false
+
+  # ------------------------------------------------------------
+  # React + Vite frontend
+  # ------------------------------------------------------------
+  - type: web
+    name: monopoly-frontend
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_SOCKET_URL
+        sync: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
